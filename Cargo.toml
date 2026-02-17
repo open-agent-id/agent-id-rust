@@ -1,6 +1,6 @@
 [package]
 name = "open-agent-id"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Open Agent ID Rust SDK - Register, sign, and verify AI agent identities"
 license = "Apache-2.0"

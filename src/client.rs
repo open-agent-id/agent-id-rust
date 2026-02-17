@@ -14,10 +14,19 @@ pub struct RegisterOptions {
     pub capabilities: Option<Vec<String>>,
     /// Platform API key for authentication.
     #[serde(skip)]
-    pub api_key: String,
+    pub api_key: Option<String>,
+    /// Bearer token from wallet auth (alternative to api_key).
+    #[serde(skip)]
+    pub user_token: Option<String>,
     /// Optional custom API base URL.
     #[serde(skip)]
     pub api_url: Option<String>,
+    /// Base64url-encoded Ed25519 public key for BYOK mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
+    /// Owner wallet address (for platform-key auth).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_id: Option<String>,
 }
 
 /// Response from the register endpoint.
@@ -25,7 +34,8 @@ pub struct RegisterOptions {
 pub struct RegisterResponse {
     pub did: String,
     pub public_key: String,
-    pub private_key: String,
+    /// Only present in legacy mode (when public_key was not provided).
+    pub private_key: Option<String>,
     pub chain_status: String,
     pub created_at: String,
 }
@@ -56,10 +66,16 @@ pub async fn register_agent(opts: &RegisterOptions) -> Result<RegisterResponse, 
     let url = format!("{}/agents", base_url);
 
     let client = reqwest::Client::new();
-    let resp = client
-        .post(&url)
-        .header("X-Platform-Key", &opts.api_key)
-        .json(opts)
+    let mut req = client.post(&url).json(opts);
+
+    // Add auth header
+    if let Some(ref api_key) = opts.api_key {
+        req = req.header("X-Platform-Key", api_key);
+    } else if let Some(ref user_token) = opts.user_token {
+        req = req.header("Authorization", format!("Bearer {}", user_token));
+    }
+
+    let resp = req
         .send()
         .await
         .map_err(|e| AgentIdError::ApiError(format!("Request failed: {}", e)))?;

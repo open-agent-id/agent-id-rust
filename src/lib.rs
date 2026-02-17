@@ -13,8 +13,11 @@
 //! let identity = AgentIdentity::register(RegisterOptions {
 //!     name: "my-agent".to_string(),
 //!     capabilities: Some(vec!["search".to_string()]),
-//!     api_key: "your-api-key".to_string(),
+//!     api_key: Some("your-api-key".to_string()),
+//!     user_token: None,
 //!     api_url: None,
+//!     public_key: None,
+//!     owner_id: None,
 //! }).await?;
 //!
 //! // Sign a payload

@@ -28,27 +28,17 @@ pub struct AgentIdentity {
 impl AgentIdentity {
     /// Register a new agent with the registry API.
     ///
-    /// Returns an `AgentIdentity` with the private key, ready for signing.
+    /// Generates the Ed25519 keypair locally (BYOK). The private key never
+    /// leaves the client. Only the public key is sent to the registry.
     pub async fn register(opts: RegisterOptions) -> Result<Self, AgentIdError> {
+        // Generate keypair locally — private key never leaves the client
+        let (signing_key, verifying_key) = crypto::generate_keypair();
+        let public_key_b64 = base64url_encode(verifying_key.as_bytes());
+
+        let mut opts = opts;
+        opts.public_key = Some(public_key_b64);
+
         let resp = client::register_agent(&opts).await?;
-
-        let private_bytes = base64url_decode(&resp.private_key)
-            .map_err(|e| AgentIdError::InvalidKey(format!("Invalid private key encoding: {}", e)))?;
-
-        // The private key from the API is 64 bytes: 32-byte seed + 32-byte public key.
-        // ed25519-dalek SigningKey expects the 32-byte seed.
-        if private_bytes.len() < 32 {
-            return Err(AgentIdError::InvalidKey(
-                "Private key too short".to_string(),
-            ));
-        }
-
-        let seed: [u8; 32] = private_bytes[..32]
-            .try_into()
-            .map_err(|_| AgentIdError::InvalidKey("Invalid private key length".to_string()))?;
-
-        let signing_key = SigningKey::from_bytes(&seed);
-        let verifying_key = signing_key.verifying_key();
 
         if !did::validate_did(&resp.did) {
             return Err(AgentIdError::InvalidDid(format!(
