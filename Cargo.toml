@@ -1,0 +1,22 @@
+[package]
+name = "agent-id"
+version = "0.1.0"
+edition = "2021"
+description = "Open Agent ID Rust SDK - Register, sign, and verify AI agent identities"
+license = "Apache-2.0"
+
+[dependencies]
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+base64 = "0.22"
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync"] }
+rand = "0.8"
+hex = "0.4"
+thiserror = "1"
+regex = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
