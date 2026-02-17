@@ -1,4 +1,4 @@
-use agent_id::crypto::{self, base64url_decode, base64url_encode, sha256_hex};
+use open_agent_id::crypto::{self, base64url_decode, base64url_encode, sha256_hex};
 use ed25519_dalek::SigningKey;
 
 #[test]

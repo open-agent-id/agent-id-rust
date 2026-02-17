@@ -1,5 +1,5 @@
-use agent_id::crypto::{base64url_decode, sha256_hex};
-use agent_id::AgentIdentity;
+use open_agent_id::crypto::{base64url_decode, sha256_hex};
+use open_agent_id::AgentIdentity;
 
 const TEST_DID: &str = "did:agent:tokli:agt_a1B2c3D4e5";
 const TEST_PRIVATE_KEY_B64: &str = "nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A";

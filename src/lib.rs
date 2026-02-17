@@ -6,9 +6,9 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use agent_id::{AgentIdentity, RegisterOptions};
+//! use open_agent_id::{AgentIdentity, RegisterOptions};
 //!
-//! # async fn example() -> Result<(), agent_id::AgentIdError> {
+//! # async fn example() -> Result<(), open_agent_id::AgentIdError> {
 //! // Register a new agent
 //! let identity = AgentIdentity::register(RegisterOptions {
 //!     name: "my-agent".to_string(),

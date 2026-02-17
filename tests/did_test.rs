@@ -1,4 +1,4 @@
-use agent_id::did::{generate_unique_id, parse_did, validate_did};
+use open_agent_id::did::{generate_unique_id, parse_did, validate_did};
 
 #[test]
 fn test_valid_dids_from_vectors() {

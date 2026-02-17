@@ -1,4 +1,4 @@
-# agent-id-rust
+# open-agent-id
 
 Rust SDK for the [Open Agent ID](https://openagentid.org) protocol. Allows AI agents to register identities, sign HTTP requests, and verify other agents' signatures using Ed25519 cryptography.
 
@@ -8,7 +8,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-agent-id = { path = "../agent-id-rust" }
+open-agent-id = { path = "../agent-id-rust" }
 ```
 
 ## Usage
@@ -16,7 +16,7 @@ agent-id = { path = "../agent-id-rust" }
 ### Register a new agent
 
 ```rust
-use agent_id::{AgentIdentity, RegisterOptions};
+use open_agent_id::{AgentIdentity, RegisterOptions};
 
 let identity = AgentIdentity::register(RegisterOptions {
     name: "my-search-agent".to_string(),
@@ -32,7 +32,7 @@ println!("Public Key: {}", identity.public_key_base64url());
 ### Load an existing identity
 
 ```rust
-use agent_id::AgentIdentity;
+use open_agent_id::AgentIdentity;
 
 let identity = AgentIdentity::load(
     "did:agent:tokli:agt_a1B2c3D4e5",
@@ -66,7 +66,7 @@ let headers = identity.sign_request(
 ### Verify another agent's signature
 
 ```rust
-use agent_id::AgentIdentity;
+use open_agent_id::AgentIdentity;
 
 let valid = AgentIdentity::verify(
     "did:agent:tokli:agt_a1B2c3D4e5",
@@ -81,7 +81,7 @@ assert!(valid);
 ### Look up agent info
 
 ```rust
-use agent_id::AgentIdentity;
+use open_agent_id::AgentIdentity;
 
 let info = AgentIdentity::lookup(
     "did:agent:tokli:agt_a1B2c3D4e5",
