@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 description = "Open Agent ID Rust SDK - Register, sign, and verify AI agent identities"
 license = "Apache-2.0"
+repository = "https://github.com/open-agent-id/agent-id-rust"
+homepage = "https://openagentid.org"
+keywords = ["agent", "identity", "did", "ed25519", "verification"]
+categories = ["authentication", "cryptography"]
 
 [dependencies]
 ed25519-dalek = { version = "2", features = ["rand_core"] }
