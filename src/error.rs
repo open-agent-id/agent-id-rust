@@ -1,23 +1,41 @@
+//! Error types for the Open Agent ID SDK.
+
 use thiserror::Error;
 
-/// Error types for the Open Agent ID SDK.
+/// Unified error type for all Open Agent ID operations.
 #[derive(Debug, Error)]
-pub enum AgentIdError {
-    #[error("Invalid DID format: {0}")]
+pub enum Error {
+    /// The DID string is malformed or does not conform to the `did:oaid:{chain}:{address}` format.
+    #[error("invalid DID: {0}")]
     InvalidDid(String),
 
-    #[error("Invalid key: {0}")]
+    /// An Ed25519 key is malformed or the wrong length.
+    #[error("invalid key: {0}")]
     InvalidKey(String),
 
-    #[error("Signing error: {0}")]
-    SigningError(String),
+    /// A signing operation failed (e.g. no private key available).
+    #[error("signing error: {0}")]
+    Signing(String),
 
-    #[error("Verification error: {0}")]
-    VerificationError(String),
+    /// Signature verification failed.
+    #[error("verification error: {0}")]
+    Verification(String),
 
+    /// A registry API call failed.
+    #[cfg(feature = "client")]
     #[error("API error: {0}")]
-    ApiError(String),
+    Api(String),
 
-    #[error("Cache error: {0}")]
-    CacheError(String),
+    /// Communication with the oaid-signer daemon failed.
+    #[cfg(feature = "signer")]
+    #[error("signer error: {0}")]
+    Signer(String),
+
+    /// An invalid URL was provided for canonical construction.
+    #[error("invalid URL: {0}")]
+    InvalidUrl(String),
+
+    /// JSON serialization or deserialization failed.
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 }

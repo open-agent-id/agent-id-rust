@@ -1,50 +1,66 @@
-//! # Open Agent ID - Rust SDK
+//! # Open Agent ID — Rust SDK
 //!
-//! A Rust SDK for the Open Agent ID protocol, allowing AI agents to register,
-//! sign requests, and verify other agents' signatures using Ed25519 cryptography.
+//! Sign, verify, and manage AI agent identities using the
+//! [Open Agent ID](https://openagentid.org) protocol (V2).
+//!
+//! ## DID Format
+//!
+//! ```text
+//! did:oaid:{chain}:{agent_address}
+//! ```
+//!
+//! - `chain`: lowercase chain identifier (e.g. `"base"`)
+//! - `agent_address`: `0x` + 40 lowercase hex chars (CREATE2-derived contract address)
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
-//! use open_agent_id::{AgentIdentity, RegisterOptions};
+//! ```rust
+//! use open_agent_id::{crypto, did::Did, signing};
 //!
-//! # async fn example() -> Result<(), open_agent_id::AgentIdError> {
-//! // Register a new agent
-//! let identity = AgentIdentity::register(RegisterOptions {
-//!     name: "my-agent".to_string(),
-//!     capabilities: Some(vec!["search".to_string()]),
-//!     api_key: Some("your-api-key".to_string()),
-//!     user_token: None,
-//!     api_url: None,
-//!     public_key: None,
-//!     owner_id: None,
-//! }).await?;
+//! // Generate a keypair
+//! let (signing_key, verifying_key) = crypto::generate_keypair();
 //!
-//! // Sign a payload
-//! let signature = identity.sign("hello")?;
+//! // Parse a DID
+//! let did = Did::parse("did:oaid:base:0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e").unwrap();
 //!
 //! // Sign an HTTP request
-//! let headers = identity.sign_request("POST", "https://example.com/api", "{}")?;
+//! let output = signing::sign_http(
+//!     &signing::HttpSignInput {
+//!         method: "POST",
+//!         url: "https://api.example.com/v1/agents",
+//!         body: b"{}",
+//!         timestamp: None,
+//!         nonce: None,
+//!     },
+//!     &signing_key,
+//! ).unwrap();
 //!
-//! // Verify another agent's signature
-//! let valid = AgentIdentity::verify(
-//!     "did:agent:tokli:agt_a1B2c3D4e5",
-//!     "hello",
-//!     &signature,
-//!     None,
-//! ).await?;
-//! # Ok(())
-//! # }
+//! // Verify
+//! let valid = signing::verify_http(
+//!     "POST",
+//!     "https://api.example.com/v1/agents",
+//!     b"{}",
+//!     output.timestamp,
+//!     &output.nonce,
+//!     &output.signature,
+//!     &verifying_key,
+//! ).unwrap();
+//! assert!(valid);
 //! ```
 
-pub mod cache;
-pub mod client;
 pub mod crypto;
 pub mod did;
 pub mod error;
-pub mod identity;
+pub mod signing;
+pub mod types;
 
-// Re-export main types at the crate root for convenience.
-pub use client::{AgentInfo, RegisterOptions, RegisterResponse};
-pub use error::AgentIdError;
-pub use identity::AgentIdentity;
+#[cfg(feature = "client")]
+pub mod client;
+
+#[cfg(feature = "signer")]
+pub mod signer;
+
+// Re-export primary types at the crate root.
+pub use did::Did;
+pub use error::Error;
+pub use types::*;

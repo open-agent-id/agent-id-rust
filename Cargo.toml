@@ -1,26 +1,31 @@
 [package]
 name = "open-agent-id"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
-description = "Open Agent ID Rust SDK - Register, sign, and verify AI agent identities"
 license = "Apache-2.0"
-repository = "https://github.com/open-agent-id/agent-id-rust"
+description = "Rust SDK for Open Agent ID — sign, verify, and manage AI agent identities"
+repository = "https://github.com/openagentid/agent-id-rust"
 homepage = "https://openagentid.org"
 keywords = ["agent", "identity", "did", "ed25519", "verification"]
 categories = ["authentication", "cryptography"]
 
 [dependencies]
 ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
 sha2 = "0.10"
 base64 = "0.22"
-reqwest = { version = "0.12", features = ["json"] }
+hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["sync"] }
-rand = "0.8"
-hex = "0.4"
-thiserror = "1"
-regex = "1"
+reqwest = { version = "0.12", features = ["json"], optional = true }
+tokio = { version = "1", features = ["net", "io-util"], optional = true }
+url = "2"
+thiserror = "2"
+
+[features]
+default = ["client", "signer"]
+client = ["dep:reqwest"]
+signer = ["dep:tokio"]
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["full"] }

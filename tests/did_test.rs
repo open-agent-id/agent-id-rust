@@ -1,73 +1,88 @@
-use open_agent_id::did::{generate_unique_id, parse_did, validate_did};
+use open_agent_id::did::{validate, Did};
 
 #[test]
-fn test_valid_dids_from_vectors() {
-    let valid = vec![
-        "did:agent:tokli:agt_a1B2c3D4e5",
-        "did:agent:openai:agt_X9yZ8wV7u6",
-        "did:agent:langchain:agt_Q3rS4tU5v6",
-        "did:agent:abc:agt_0000000000",
-    ];
-    for did in valid {
-        assert!(validate_did(did), "Expected valid: {}", did);
-    }
+fn valid_base_did() {
+    let did = Did::parse("did:oaid:base:0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e").unwrap();
+    assert_eq!(did.chain, "base");
+    assert_eq!(
+        did.address,
+        "0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e"
+    );
 }
 
 #[test]
-fn test_invalid_dids_from_vectors() {
-    let invalid = vec![
-        "did:agent:AB:agt_a1B2c3D4e5",                          // platform too short
-        "did:agent:toolongplatformnamehere:agt_a1B2c3D4e5",      // platform too long
-        "did:agent:tokli:a1B2c3D4e5",                            // missing agt_ prefix
-        "did:agent:tokli:agt_short",                              // unique_id too short
-        "did:agent:tokli:agt_a1B2c3D4e5!",                       // invalid character
-        "did:other:tokli:agt_a1B2c3D4e5",                        // wrong method
-        "did:agent:UPPER:agt_a1B2c3D4e5",                        // uppercase platform
-        "",                                                        // empty string
-    ];
-    for did in invalid {
-        assert!(!validate_did(did), "Expected invalid: '{}'", did);
-    }
+fn valid_base_sepolia_did() {
+    let did =
+        Did::parse("did:oaid:base-sepolia:0x0000000000000000000000000000000000000001").unwrap();
+    assert_eq!(did.chain, "base-sepolia");
 }
 
 #[test]
-fn test_parse_did_components() {
-    let c = parse_did("did:agent:tokli:agt_a1B2c3D4e5").unwrap();
-    assert_eq!(c.did, "did:agent:tokli:agt_a1B2c3D4e5");
-    assert_eq!(c.method, "agent");
-    assert_eq!(c.platform, "tokli");
-    assert_eq!(c.unique_id, "agt_a1B2c3D4e5");
+fn normalizes_to_lowercase() {
+    let did = Did::parse("did:oaid:BASE:0x7F4E3D2C1B0A9F8E7D6C5B4A3F2E1D0C9B8A7F6E").unwrap();
+    assert_eq!(did.chain, "base");
+    assert_eq!(
+        did.address,
+        "0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e"
+    );
 }
 
 #[test]
-fn test_parse_did_langchain() {
-    let c = parse_did("did:agent:langchain:agt_Q3rS4tU5v6").unwrap();
-    assert_eq!(c.platform, "langchain");
-    assert_eq!(c.unique_id, "agt_Q3rS4tU5v6");
+fn display_roundtrip() {
+    let input = "did:oaid:base:0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e";
+    let did = Did::parse(input).unwrap();
+    assert_eq!(did.to_string(), input);
+    assert_eq!(format!("{did}"), input);
 }
 
 #[test]
-fn test_parse_invalid_did() {
-    assert!(parse_did("").is_err());
-    assert!(parse_did("did:other:tokli:agt_a1B2c3D4e5").is_err());
-    assert!(parse_did("not-a-did").is_err());
+fn reject_v1_did() {
+    assert!(Did::parse("did:agent:tokli:agt_a1B2c3D4e5").is_err());
 }
 
 #[test]
-fn test_generate_unique_id_format() {
-    for _ in 0..100 {
-        let id = generate_unique_id();
-        assert!(id.starts_with("agt_"), "ID should start with agt_: {}", id);
-        assert_eq!(id.len(), 14, "ID should be 14 chars: {}", id);
-        // Validate the generated ID produces a valid DID
-        let did = format!("did:agent:test:{}", id);
-        assert!(validate_did(&did), "Generated DID should be valid: {}", did);
-    }
+fn reject_wrong_method() {
+    assert!(
+        Did::parse("did:xxx:base:0x0000000000000000000000000000000000000001").is_err()
+    );
 }
 
 #[test]
-fn test_generate_unique_id_uniqueness() {
-    let ids: Vec<String> = (0..100).map(|_| generate_unique_id()).collect();
-    let unique: std::collections::HashSet<_> = ids.iter().collect();
-    assert_eq!(ids.len(), unique.len(), "Generated IDs should be unique");
+fn reject_short_address() {
+    assert!(Did::parse("did:oaid:base:0x1234").is_err());
+}
+
+#[test]
+fn reject_missing_0x_prefix() {
+    assert!(
+        Did::parse("did:oaid:base:7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e").is_err()
+    );
+}
+
+#[test]
+fn reject_empty() {
+    assert!(Did::parse("").is_err());
+}
+
+#[test]
+fn reject_too_long() {
+    let chain = "a".repeat(60);
+    let did_str = format!("did:oaid:{chain}:0x0000000000000000000000000000000000000001");
+    assert!(Did::parse(&did_str).is_err());
+}
+
+#[test]
+fn new_constructs_and_normalizes() {
+    let did = Did::new("base", "0xAbCdEf0000000000000000000000000000000000").unwrap();
+    assert_eq!(did.address, "0xabcdef0000000000000000000000000000000000");
+    assert_eq!(did.chain, "base");
+}
+
+#[test]
+fn validate_helper() {
+    assert!(validate(
+        "did:oaid:base:0x0000000000000000000000000000000000000001"
+    ));
+    assert!(!validate("garbage"));
+    assert!(!validate("did:agent:tokli:agt_a1B2c3D4e5"));
 }
