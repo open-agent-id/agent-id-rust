@@ -185,6 +185,11 @@ pub fn build_msg_payload(
 /// Sign an agent-to-agent message using `oaid-msg/v1`.
 pub fn sign_msg(input: &MsgSignInput, key: &SigningKey) -> MsgSignOutput {
     let timestamp = input.timestamp.unwrap_or_else(now_unix);
+    let expires_at = if input.expires_at == 0 {
+        timestamp + DEFAULT_EXPIRE_SECONDS
+    } else {
+        input.expires_at
+    };
 
     let payload = build_msg_payload(
         input.msg_type,
@@ -193,7 +198,7 @@ pub fn sign_msg(input: &MsgSignInput, key: &SigningKey) -> MsgSignOutput {
         input.to,
         input.reference,
         timestamp,
-        input.expires_at,
+        expires_at,
         input.body,
     );
 
@@ -443,6 +448,8 @@ mod tests {
 
         let output = sign_msg(&input, &sk);
 
+        // expires_at=0 should resolve to timestamp + DEFAULT_EXPIRE_SECONDS
+        let expected_expires = output.timestamp + DEFAULT_EXPIRE_SECONDS;
         let valid = verify_msg(
             input.msg_type,
             input.id,
@@ -450,7 +457,7 @@ mod tests {
             input.to,
             input.reference,
             output.timestamp,
-            input.expires_at,
+            expected_expires,
             input.body,
             &output.signature,
             &vk,

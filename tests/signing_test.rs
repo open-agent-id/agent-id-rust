@@ -311,6 +311,8 @@ fn msg_sign_verify_roundtrip() {
 
     let output = sign_msg(&input, &sk);
 
+    // expires_at=0 resolves to timestamp + 300 inside sign_msg
+    let resolved_expires = output.timestamp + 300;
     let valid = verify_msg(
         input.msg_type,
         input.id,
@@ -318,7 +320,7 @@ fn msg_sign_verify_roundtrip() {
         input.to,
         input.reference,
         output.timestamp,
-        input.expires_at,
+        resolved_expires,
         input.body,
         &output.signature,
         &vk,
@@ -345,6 +347,7 @@ fn msg_tampered_body_fails() {
 
     let output = sign_msg(&input, &sk);
 
+    let resolved_expires = output.timestamp + 300;
     let tampered_body = serde_json::json!({"vote": "no"});
     let valid = verify_msg(
         input.msg_type,
@@ -353,7 +356,7 @@ fn msg_tampered_body_fails() {
         input.to,
         input.reference,
         output.timestamp,
-        input.expires_at,
+        resolved_expires,
         &tampered_body,
         &output.signature,
         &vk,
