@@ -147,6 +147,17 @@ let val: serde_json::Value = serde_json::from_str(r#"{"z":1,"a":"hello"}"#).unwr
 assert_eq!(signing::canonical_json(&val), r#"{"a":"hello","z":1}"#);
 ```
 
+### End-to-end encrypted messaging
+
+```rust
+use open_agent_id::crypto;
+
+let ciphertext = crypto::encrypt_for(b"secret", &recipient_pub, &sender_signing_key)?;
+let plaintext = crypto::decrypt_from(&ciphertext, &sender_pub, &recipient_signing_key)?;
+```
+
+Uses NaCl box (X25519-XSalsa20-Poly1305).
+
 ## Signing Domains
 
 | Domain | Purpose | Payload format |
