@@ -113,25 +113,28 @@ impl RegistryClient {
         Self::parse_response(resp).await
     }
 
-    /// List agents owned by a wallet address.
+    /// List agents owned by the authenticated wallet.
     ///
-    /// `GET /v1/agents?owner={wallet}` — no auth required.
-    pub async fn list_by_owner(
+    /// `GET /v1/agents` — requires wallet auth (`Authorization: Bearer oaid_...`).
+    pub async fn list_my_agents(
         &self,
-        wallet: &str,
+        token: &str,
         cursor: Option<&str>,
         limit: Option<u32>,
     ) -> Result<Vec<AgentInfo>, Error> {
-        let mut url = format!("{}/agents?owner={}", self.base_url, wallet);
+        let mut url = format!("{}/agents", self.base_url);
+        let mut has_param = false;
         if let Some(c) = cursor {
-            url.push_str(&format!("&cursor={c}"));
+            url.push_str(&format!("?cursor={c}"));
+            has_param = true;
         }
         if let Some(l) = limit {
-            url.push_str(&format!("&limit={l}"));
+            url.push_str(&format!("{}limit={l}", if has_param { "&" } else { "?" }));
         }
         let resp = self
             .http
             .get(&url)
+            .bearer_auth(token)
             .send()
             .await
             .map_err(|e| Error::Api(format!("list request failed: {e}")))?;
