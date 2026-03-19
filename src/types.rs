@@ -35,10 +35,25 @@ pub struct AgentInfo {
     /// Whether the agent wallet contract has been deployed.
     #[serde(default)]
     pub wallet_deployed: bool,
+    /// Nonce (key rotation counter).
+    #[serde(default)]
+    pub nonce: i64,
+    /// On-chain transaction hash, if submitted or anchored.
+    #[serde(default)]
+    pub chain_tx_hash: Option<String>,
     /// Creation timestamp (ISO 8601).
     pub created_at: String,
     /// Last update timestamp (ISO 8601).
     pub updated_at: String,
+}
+
+/// Response from `GET /v1/agents` (list agents).
+#[derive(Debug, Clone, Deserialize)]
+pub struct ListAgentsResponse {
+    /// The list of agents.
+    pub agents: Vec<AgentInfo>,
+    /// Cursor for the next page, if any.
+    pub next_cursor: Option<String>,
 }
 
 /// Credit score information for an agent.
@@ -97,14 +112,14 @@ pub struct Challenge {
     /// Unique identifier for this challenge.
     pub challenge_id: String,
     /// Human-readable text to sign with the wallet.
-    pub text: String,
+    pub challenge: String,
 }
 
 /// Request body for `POST /v1/auth/wallet`.
 #[derive(Debug, Clone, Serialize)]
 pub struct WalletAuthRequest {
     /// The wallet address (checksummed or lowercase).
-    pub wallet: String,
+    pub wallet_address: String,
     /// The challenge ID from the challenge endpoint.
     pub challenge_id: String,
     /// The wallet's signature of the challenge text.

@@ -49,11 +49,12 @@ impl RegistryClient {
     /// Request a wallet authentication challenge.
     ///
     /// `POST /v1/auth/challenge`
-    pub async fn challenge(&self) -> Result<Challenge, Error> {
+    pub async fn challenge(&self, wallet_address: &str) -> Result<Challenge, Error> {
         let url = format!("{}/auth/challenge", self.base_url);
         let resp = self
             .http
             .post(&url)
+            .json(&serde_json::json!({ "wallet_address": wallet_address }))
             .send()
             .await
             .map_err(|e| Error::Api(format!("challenge request failed: {e}")))?;
@@ -121,7 +122,7 @@ impl RegistryClient {
         token: &str,
         cursor: Option<&str>,
         limit: Option<u32>,
-    ) -> Result<Vec<AgentInfo>, Error> {
+    ) -> Result<ListAgentsResponse, Error> {
         let mut url = format!("{}/agents", self.base_url);
         let mut has_param = false;
         if let Some(c) = cursor {
