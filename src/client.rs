@@ -190,6 +190,24 @@ impl RegistryClient {
     }
 
     // -----------------------------------------------------------------------
+    // Credit
+    // -----------------------------------------------------------------------
+
+    /// Get an agent's credit score.
+    ///
+    /// `GET /v1/credit/{did}` — no auth required.
+    pub async fn get_credit(&self, did: &str) -> Result<CreditInfo, Error> {
+        let url = format!("{}/credit/{}", self.base_url, did);
+        let resp = self
+            .http
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| Error::Api(format!("credit lookup request failed: {e}")))?;
+        Self::parse_response(resp).await
+    }
+
+    // -----------------------------------------------------------------------
     // Verify
     // -----------------------------------------------------------------------
 

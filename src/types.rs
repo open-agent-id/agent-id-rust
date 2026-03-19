@@ -41,6 +41,27 @@ pub struct AgentInfo {
     pub updated_at: String,
 }
 
+/// Credit score information for an agent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreditInfo {
+    /// The agent's DID.
+    pub did: String,
+    /// Numeric credit score.
+    pub credit_score: i32,
+    /// Credit level (e.g. `"standard"`).
+    pub level: String,
+    /// Whether the agent is verified.
+    pub verified: bool,
+    /// Whether the agent is flagged.
+    pub flagged: bool,
+    /// Number of currently active reports.
+    pub active_reports: i64,
+    /// Total lifetime reports.
+    pub lifetime_reports: i64,
+    /// Registration timestamp (ISO 8601).
+    pub registered_at: String,
+}
+
 /// Request body for registering a new agent.
 #[derive(Debug, Clone, Serialize)]
 pub struct RegistrationRequest {
