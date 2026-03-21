@@ -9,32 +9,115 @@ Rust SDK for the [Open Agent ID](https://openagentid.org) protocol (V2). Sign an
 open-agent-id = "0.2"
 ```
 
-## DID Format
+Enable optional features:
 
-```
-did:oaid:{chain}:{address}
-```
-
-- **chain**: lowercase identifier (e.g. `base`, `base-sepolia`)
-- **address**: `0x` + 40 lowercase hex characters
-
-Examples:
-```
-did:oaid:base:0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e
-did:oaid:base-sepolia:0x0000000000000000000000000000000000000001
+```toml
+open-agent-id = { version = "0.2", features = ["client", "signer"] }
 ```
 
-## Usage
+## Quick Start
 
-### Parse a DID
+The most common use case is adding agent authentication headers to outbound requests:
 
 ```rust
-use open_agent_id::Did;
+use open_agent_id::sign_agent_auth;
 
-let did = Did::parse("did:oaid:base:0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e").unwrap();
-assert_eq!(did.chain, "base");
-println!("{did}"); // did:oaid:base:0x7f4e...
+let headers = sign_agent_auth(
+    "did:oaid:base:0x1234567890abcdef1234567890abcdef12345678",
+    &private_key, // ed25519 SigningKey
+)?;
+// Returns HashMap with:
+//   "X-Agent-DID"       => "did:oaid:base:0x1234..."
+//   "X-Agent-Timestamp" => "1708123456"
+//   "X-Agent-Nonce"     => "a3f1b2c4d5e6f7089012abcd"
+//   "X-Agent-Signature" => "<base64url signature>"
+
+let resp = reqwest::Client::new()
+    .post("https://api.example.com/v1/tasks")
+    .headers(headers.try_into()?)
+    .json(&serde_json::json!({"task": "search"}))
+    .send()
+    .await?;
 ```
+
+## Registry Client
+
+Requires the `client` feature.
+
+```rust,no_run
+use open_agent_id::client::RegistryClient;
+
+let client = RegistryClient::new(None); // uses https://api.openagentid.org/v1
+```
+
+### All methods
+
+| Method | Auth required | Description |
+|---|---|---|
+| `client.challenge(wallet_address)` | No | Request a wallet auth challenge |
+| `client.wallet_auth(wallet_address, challenge_id, signature)` | No | Verify wallet signature, returns auth token |
+| `client.register(token, agent_data)` | Yes | Register a new agent (accepts optional `referred_by` DID) |
+| `client.lookup(did)` | No | Look up an agent by DID |
+| `client.list_my_agents(token)` | Yes | List agents owned by the authenticated wallet |
+| `client.update_agent(did, updates, token)` | Yes | Update agent metadata |
+| `client.revoke(did, token)` | Yes | Revoke an agent identity |
+| `client.rotate_key(did, new_public_key, token)` | Yes | Rotate an agent's public key |
+| `client.deploy_wallet(did, token)` | Yes | Deploy an on-chain smart wallet for an agent |
+| `client.get_credit(did)` | No | Look up an agent's credit score |
+| `client.verify(did, signature, payload)` | No | Verify a signature against the agent's registered key |
+
+### Wallet auth flow
+
+```rust,no_run
+// 1. Request challenge
+let challenge = client.challenge(wallet_address).await?;
+
+// 2. Sign the challenge text with your wallet
+// let wallet_signature = ...;
+
+// 3. Verify and get auth token
+let token = client.wallet_auth(wallet_address, &challenge.challenge_id, &wallet_signature).await?;
+```
+
+### Register an agent
+
+```rust,no_run
+use open_agent_id::client::RegisterAgentRequest;
+
+let agent = client.register(&token, RegisterAgentRequest {
+    name: "my-agent".into(),
+    capabilities: vec!["search".into(), "summarize".into()],
+    public_key: base64url_public_key,
+    referred_by: Some("did:oaid:base:0xaaaa...".into()), // optional referral
+    ..Default::default()
+}).await?;
+```
+
+### Look up and list agents
+
+```rust,no_run
+let info = client.lookup("did:oaid:base:0x1234...").await?;
+let agents = client.list_my_agents(&token).await?;
+```
+
+### Manage agents
+
+```rust,no_run
+client.update_agent("did:oaid:base:0x1234...", updates, &token).await?;
+client.rotate_key("did:oaid:base:0x1234...", &new_public_key, &token).await?;
+client.revoke("did:oaid:base:0x1234...", &token).await?;
+client.deploy_wallet("did:oaid:base:0x1234...", &token).await?;
+```
+
+## Credit Score
+
+```rust,no_run
+let credit = client.get_credit("did:oaid:base:0x1234567890abcdef1234567890abcdef12345678").await?;
+println!("Score: {}", credit.credit_score);  // 300
+println!("Level: {}", credit.level);         // "verified"
+```
+
+## HTTP Signing
 
 ### Sign and verify an HTTP request
 
@@ -66,6 +149,19 @@ let valid = signing::verify_http(
 assert!(valid);
 ```
 
+### Signer daemon client
+
+Requires the `signer` feature.
+
+```rust,no_run
+use open_agent_id::signer::SignerClient;
+
+let client = SignerClient::connect("/var/run/oaid-signer.sock").await?;
+let signature = client.sign("my-key-id", "http", b"payload").await?;
+```
+
+## Message Signing
+
 ### Sign and verify a P2P message
 
 ```rust
@@ -95,7 +191,7 @@ let valid = signing::verify_msg(
     &["did:oaid:base:0x0000000000000000000000000000000000000002"],
     "",
     output.timestamp,
-    output.timestamp + 300, // must match the resolved expires_at
+    output.timestamp + 300,
     &body,
     &output.signature,
     &verifying_key,
@@ -103,37 +199,30 @@ let valid = signing::verify_msg(
 assert!(valid);
 ```
 
-### Registry client (feature: `client`)
+## E2E Encryption
 
-```rust,no_run
-use open_agent_id::client::RegistryClient;
+```rust
+use open_agent_id::crypto;
 
-#[tokio::main]
-async fn main() -> Result<(), open_agent_id::Error> {
-    let client = RegistryClient::new(None); // uses https://api.openagentid.org/v1
-
-    // Look up an agent (no auth required)
-    let info = client.lookup("did:oaid:base:0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e").await?;
-    println!("Agent: {:?}", info.name);
-    Ok(())
-}
+let ciphertext = crypto::encrypt_for(b"secret", &recipient_pub, &sender_signing_key)?;
+let plaintext = crypto::decrypt_from(&ciphertext, &sender_pub, &recipient_signing_key)?;
 ```
 
-### Signer daemon client (feature: `signer`)
+Uses NaCl box (X25519-XSalsa20-Poly1305).
 
-```rust,no_run
-use open_agent_id::signer::SignerClient;
+## DID Utilities
 
-#[tokio::main]
-async fn main() -> Result<(), open_agent_id::Error> {
-    let client = SignerClient::connect("/var/run/oaid-signer.sock").await?;
-    let signature = client.sign("my-key-id", "http", b"payload").await?;
-    println!("Signature: {signature}");
-    Ok(())
-}
+### Parse a DID
+
+```rust
+use open_agent_id::Did;
+
+let did = Did::parse("did:oaid:base:0x7f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e").unwrap();
+assert_eq!(did.chain, "base");
+println!("{did}"); // did:oaid:base:0x7f4e...
 ```
 
-### Utilities
+### Canonical helpers
 
 ```rust
 use open_agent_id::signing;
@@ -147,23 +236,12 @@ let val: serde_json::Value = serde_json::from_str(r#"{"z":1,"a":"hello"}"#).unwr
 assert_eq!(signing::canonical_json(&val), r#"{"a":"hello","z":1}"#);
 ```
 
-### End-to-end encrypted messaging
+## Testing
 
-```rust
-use open_agent_id::crypto;
-
-let ciphertext = crypto::encrypt_for(b"secret", &recipient_pub, &sender_signing_key)?;
-let plaintext = crypto::decrypt_from(&ciphertext, &sender_pub, &recipient_signing_key)?;
+```bash
+cargo test
+cargo test --all-features
 ```
-
-Uses NaCl box (X25519-XSalsa20-Poly1305).
-
-## Signing Domains
-
-| Domain | Purpose | Payload format |
-|---|---|---|
-| `oaid-http/v1` | HTTP request signing | `oaid-http/v1\n{METHOD}\n{URL}\n{BODY_SHA256}\n{TIMESTAMP}\n{NONCE}` |
-| `oaid-msg/v1` | P2P message signing | `oaid-msg/v1\n{TYPE}\n{ID}\n{FROM}\n{TO}\n{REF}\n{TIMESTAMP}\n{EXPIRES}\n{BODY_SHA256}` |
 
 ## License
 
