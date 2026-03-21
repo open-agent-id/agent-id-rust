@@ -91,6 +91,10 @@ pub struct CreditInfo {
     /// Total lifetime referrals.
     #[serde(default)]
     pub lifetime_referrals: i64,
+    #[serde(default)]
+    pub reports_filed: i64,
+    #[serde(default)]
+    pub reports_filed_verified: i64,
     /// Registration timestamp (ISO 8601).
     pub registered_at: String,
 }
