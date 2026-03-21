@@ -41,9 +41,15 @@ pub struct AgentInfo {
     /// On-chain transaction hash, if submitted or anchored.
     #[serde(default)]
     pub chain_tx_hash: Option<String>,
-    /// Credit score, if available.
+    /// Block number at which the agent was anchored on-chain.
     #[serde(default)]
-    pub credit_score: Option<i32>,
+    pub chain_anchor_block: Option<i64>,
+    /// Number of block confirmations since anchoring.
+    #[serde(default)]
+    pub chain_confirmations: i32,
+    /// Credit score.
+    #[serde(default)]
+    pub credit_score: i32,
     /// DID of the referring agent, if any.
     #[serde(default)]
     pub referred_by: Option<String>,
@@ -162,6 +168,26 @@ pub struct VerifyRequest {
 pub struct VerifyResponse {
     /// Whether the signature is valid.
     pub valid: bool,
+}
+
+/// Request body for `PATCH /v1/agents/{did}` (update agent).
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct UpdateAgentRequest {
+    /// Human-readable display name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Inbox endpoint URL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
+    /// Endpoint type: `"http"`, `"ws"`, or `"registry"`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endpoint_type: Option<String>,
+    /// List of capabilities.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<Vec<String>>,
+    /// Platform metadata.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
 }
 
 /// Request body for `PUT /v1/agents/{did}/key` (key rotation).

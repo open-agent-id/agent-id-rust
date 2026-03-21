@@ -147,6 +147,27 @@ impl RegistryClient {
         Self::parse_response(resp).await
     }
 
+    /// Update an agent's metadata.
+    ///
+    /// `PATCH /v1/agents/{did}` — requires wallet auth (`Authorization: Bearer oaid_...`).
+    pub async fn update_agent(
+        &self,
+        token: &str,
+        did: &str,
+        req: &UpdateAgentRequest,
+    ) -> Result<AgentInfo, Error> {
+        let url = format!("{}/v1/agents/{}", self.base_url, did);
+        let resp = self
+            .http
+            .patch(&url)
+            .bearer_auth(token)
+            .json(req)
+            .send()
+            .await
+            .map_err(|e| Error::Api(format!("update agent request failed: {e}")))?;
+        Self::parse_response(resp).await
+    }
+
     /// Delete (revoke) an agent.
     ///
     /// `DELETE /v1/agents/{did}` — requires wallet auth.
