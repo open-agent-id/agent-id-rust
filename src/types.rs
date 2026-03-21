@@ -82,19 +82,18 @@ pub struct CreditInfo {
     /// Whether the agent is flagged.
     pub flagged: bool,
     /// Number of currently active reports (12-month window).
-    pub active_reports: i64,
+    pub reported_1y: i64,
     /// Total lifetime reports.
-    pub lifetime_reports: i64,
+    pub reported_total: i64,
     /// Number of active verified referrals (12-month window).
     #[serde(default)]
-    pub active_referrals: i64,
+    pub referrals_1y: i64,
     /// Total lifetime referrals.
     #[serde(default)]
-    pub lifetime_referrals: i64,
+    pub referrals_total: i64,
     #[serde(default)]
-    pub reports_filed: i64,
+    pub reports_submitted: i64,
     #[serde(default)]
-    pub reports_filed_verified: i64,
     /// Registration timestamp (ISO 8601).
     pub registered_at: String,
 }
