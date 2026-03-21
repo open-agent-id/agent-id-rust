@@ -21,7 +21,10 @@ use crate::error::Error;
 use crate::types::*;
 
 /// Default API base URL for the Open Agent ID registry.
-pub const DEFAULT_API_URL: &str = "https://api.openagentid.org/v1";
+///
+/// The base URL should **not** include the `/v1` path prefix. All endpoint
+/// methods add it automatically. This is consistent with the Python and JS SDKs.
+pub const DEFAULT_API_URL: &str = "https://api.openagentid.org";
 
 /// HTTP client for the Open Agent ID registry API.
 pub struct RegistryClient {
@@ -31,7 +34,9 @@ pub struct RegistryClient {
 
 impl RegistryClient {
     /// Create a new client. If `base_url` is `None`, the default
-    /// (`https://api.openagentid.org/v1`) is used.
+    /// (`https://api.openagentid.org`) is used.
+    ///
+    /// The base URL should **not** include `/v1`; endpoint methods add it.
     pub fn new(base_url: Option<&str>) -> Self {
         Self {
             base_url: base_url
@@ -50,7 +55,7 @@ impl RegistryClient {
     ///
     /// `POST /v1/auth/challenge`
     pub async fn challenge(&self, wallet_address: &str) -> Result<Challenge, Error> {
-        let url = format!("{}/auth/challenge", self.base_url);
+        let url = format!("{}/v1/auth/challenge", self.base_url);
         let resp = self
             .http
             .post(&url)
@@ -65,7 +70,7 @@ impl RegistryClient {
     ///
     /// `POST /v1/auth/wallet`
     pub async fn wallet_auth(&self, req: &WalletAuthRequest) -> Result<WalletAuthResponse, Error> {
-        let url = format!("{}/auth/wallet", self.base_url);
+        let url = format!("{}/v1/auth/wallet", self.base_url);
         let resp = self
             .http
             .post(&url)
@@ -88,7 +93,7 @@ impl RegistryClient {
         token: &str,
         req: &RegistrationRequest,
     ) -> Result<RegistrationResponse, Error> {
-        let url = format!("{}/agents", self.base_url);
+        let url = format!("{}/v1/agents", self.base_url);
         let resp = self
             .http
             .post(&url)
@@ -104,7 +109,7 @@ impl RegistryClient {
     ///
     /// `GET /v1/agents/{did}` — no auth required.
     pub async fn lookup(&self, did: &str) -> Result<AgentInfo, Error> {
-        let url = format!("{}/agents/{}", self.base_url, did);
+        let url = format!("{}/v1/agents/{}", self.base_url, did);
         let resp = self
             .http
             .get(&url)
@@ -123,7 +128,7 @@ impl RegistryClient {
         cursor: Option<&str>,
         limit: Option<u32>,
     ) -> Result<ListAgentsResponse, Error> {
-        let mut url = format!("{}/agents", self.base_url);
+        let mut url = format!("{}/v1/agents", self.base_url);
         let mut has_param = false;
         if let Some(c) = cursor {
             url.push_str(&format!("?cursor={c}"));
@@ -146,7 +151,7 @@ impl RegistryClient {
     ///
     /// `DELETE /v1/agents/{did}` — requires wallet auth.
     pub async fn revoke(&self, token: &str, did: &str) -> Result<(), Error> {
-        let url = format!("{}/agents/{}", self.base_url, did);
+        let url = format!("{}/v1/agents/{}", self.base_url, did);
         let resp = self
             .http
             .delete(&url)
@@ -171,7 +176,7 @@ impl RegistryClient {
         did: &str,
         req: &RotateKeyRequest,
     ) -> Result<(), Error> {
-        let url = format!("{}/agents/{}/key", self.base_url, did);
+        let url = format!("{}/v1/agents/{}/key", self.base_url, did);
         let resp = self
             .http
             .put(&url)
@@ -198,7 +203,7 @@ impl RegistryClient {
     ///
     /// `GET /v1/credit/{did}` — no auth required.
     pub async fn get_credit(&self, did: &str) -> Result<CreditInfo, Error> {
-        let url = format!("{}/credit/{}", self.base_url, did);
+        let url = format!("{}/v1/credit/{}", self.base_url, did);
         let resp = self
             .http
             .get(&url)
@@ -216,7 +221,7 @@ impl RegistryClient {
     ///
     /// `POST /v1/verify` — no auth required.
     pub async fn verify(&self, req: &VerifyRequest) -> Result<VerifyResponse, Error> {
-        let url = format!("{}/verify", self.base_url);
+        let url = format!("{}/v1/verify", self.base_url);
         let resp = self
             .http
             .post(&url)
@@ -235,7 +240,7 @@ impl RegistryClient {
     ///
     /// `POST /v1/agents/{did}/deploy-wallet` — requires wallet auth.
     pub async fn deploy_wallet(&self, token: &str, did: &str) -> Result<(), Error> {
-        let url = format!("{}/agents/{}/deploy-wallet", self.base_url, did);
+        let url = format!("{}/v1/agents/{}/deploy-wallet", self.base_url, did);
         let resp = self
             .http
             .post(&url)

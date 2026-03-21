@@ -41,6 +41,12 @@ pub struct AgentInfo {
     /// On-chain transaction hash, if submitted or anchored.
     #[serde(default)]
     pub chain_tx_hash: Option<String>,
+    /// Credit score, if available.
+    #[serde(default)]
+    pub credit_score: Option<i32>,
+    /// DID of the referring agent, if any.
+    #[serde(default)]
+    pub referred_by: Option<String>,
     /// Creation timestamp (ISO 8601).
     pub created_at: String,
     /// Last update timestamp (ISO 8601).
@@ -92,9 +98,8 @@ pub struct RegistrationRequest {
     /// Optional list of capabilities.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub capabilities: Option<Vec<String>>,
-    /// Base64url-encoded Ed25519 public key (BYOK).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub public_key: Option<String>,
+    /// Base64url-encoded Ed25519 public key.
+    pub public_key: String,
 }
 
 /// Response from the registration endpoint.

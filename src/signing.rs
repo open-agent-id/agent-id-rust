@@ -258,12 +258,14 @@ pub fn canonicalize_url(raw: &str) -> Result<String, Error> {
     };
     let path = parsed.path();
 
-    // Sort query parameters by key
+    // Sort query parameters by key, then by value (preserving duplicates)
     let query_string = {
-        let pairs: BTreeMap<String, String> = parsed
+        let mut pairs: Vec<(String, String)> = parsed
             .query_pairs()
             .map(|(k, v)| (k.into_owned(), v.into_owned()))
             .collect();
+
+        pairs.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
         if pairs.is_empty() {
             String::new()
@@ -301,6 +303,52 @@ pub fn canonical_json(value: &serde_json::Value) -> String {
         }
         _ => serde_json::to_string(value).unwrap_or_default(),
     }
+}
+
+/// Sign agent authentication headers for the registry API.
+///
+/// Uses the simple payload format: `{did}\n{timestamp}\n{nonce}`.
+/// Returns a map of HTTP headers to attach to the request.
+pub fn sign_agent_auth(
+    did: &str,
+    key: &SigningKey,
+) -> std::collections::HashMap<String, String> {
+    let timestamp = now_unix();
+    let nonce = crypto::generate_nonce();
+
+    let payload = format!("{}\n{}\n{}", did, timestamp, nonce);
+    let sig = crypto::sign(payload.as_bytes(), key);
+
+    let mut headers = std::collections::HashMap::new();
+    headers.insert("X-Agent-DID".to_string(), did.to_string());
+    headers.insert("X-Agent-Timestamp".to_string(), timestamp.to_string());
+    headers.insert("X-Agent-Nonce".to_string(), nonce);
+    headers.insert(
+        "X-Agent-Signature".to_string(),
+        crypto::base64url_encode(&sig.to_bytes()),
+    );
+    headers
+}
+
+/// Verify agent authentication headers from the registry API.
+///
+/// Reconstructs the simple payload `{did}\n{timestamp}\n{nonce}` and verifies
+/// the Ed25519 signature. Does **not** check timestamp freshness (caller should
+/// enforce the +-300s window).
+pub fn verify_agent_auth(
+    did: &str,
+    timestamp: u64,
+    nonce: &str,
+    signature_b64: &str,
+    key: &VerifyingKey,
+) -> Result<bool, Error> {
+    let payload = format!("{}\n{}\n{}", did, timestamp, nonce);
+    let sig_bytes = crypto::base64url_decode(signature_b64)?;
+    let sig_arr: [u8; 64] = sig_bytes
+        .try_into()
+        .map_err(|_| Error::Verification("signature must be 64 bytes".into()))?;
+    let sig = Signature::from_bytes(&sig_arr);
+    Ok(crypto::verify(payload.as_bytes(), &sig, key))
 }
 
 /// Get the current Unix timestamp in seconds.
@@ -349,6 +397,16 @@ mod tests {
     fn canonical_url_with_port() {
         let result = canonicalize_url("https://localhost:8080/api").unwrap();
         assert_eq!(result, "https://localhost:8080/api");
+    }
+
+    #[test]
+    fn canonical_url_duplicate_query_params() {
+        let result =
+            canonicalize_url("https://api.example.com/v1/agents?tag=b&tag=a&limit=10").unwrap();
+        assert_eq!(
+            result,
+            "https://api.example.com/v1/agents?limit=10&tag=a&tag=b"
+        );
     }
 
     #[test]
@@ -490,6 +548,22 @@ mod tests {
         let payload = build_msg_payload("test", "id1", "from", &[], "", 100, 0, &body);
         let lines: Vec<&str> = payload.split('\n').collect();
         assert_eq!(lines[4], ""); // empty sorted_to
+    }
+
+    #[test]
+    fn agent_auth_sign_verify_roundtrip() {
+        let (sk, vk) = crypto::generate_keypair();
+        let did = "did:oaid:base:0x0000000000000000000000000000000000000001";
+
+        let headers = sign_agent_auth(did, &sk);
+        assert_eq!(headers.get("X-Agent-DID").unwrap(), did);
+
+        let ts: u64 = headers.get("X-Agent-Timestamp").unwrap().parse().unwrap();
+        let nonce = headers.get("X-Agent-Nonce").unwrap();
+        let sig = headers.get("X-Agent-Signature").unwrap();
+
+        let valid = verify_agent_auth(did, ts, nonce, sig, &vk).unwrap();
+        assert!(valid);
     }
 
     #[test]
