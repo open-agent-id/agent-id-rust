@@ -20,12 +20,12 @@ open-agent-id = { version = "0.2", features = ["client", "signer"] }
 The most common use case is adding agent authentication headers to outbound requests:
 
 ```rust
-use open_agent_id::sign_agent_auth;
+use open_agent_id::signing::sign_agent_auth;
 
 let headers = sign_agent_auth(
     "did:oaid:base:0x1234567890abcdef1234567890abcdef12345678",
-    &private_key, // ed25519 SigningKey
-)?;
+    &signing_key, // ed25519_dalek::SigningKey
+);
 // Returns HashMap with:
 //   "X-Agent-DID"       => "did:oaid:base:0x1234..."
 //   "X-Agent-Timestamp" => "1708123456"
@@ -47,7 +47,7 @@ Requires the `client` feature.
 ```rust,no_run
 use open_agent_id::client::RegistryClient;
 
-let client = RegistryClient::new(None); // uses https://api.openagentid.org/v1
+let client = RegistryClient::new(None); // uses https://api.openagentid.org
 ```
 
 ### All methods
@@ -55,20 +55,22 @@ let client = RegistryClient::new(None); // uses https://api.openagentid.org/v1
 | Method | Auth required | Description |
 |---|---|---|
 | `client.challenge(wallet_address)` | No | Request a wallet auth challenge |
-| `client.wallet_auth(wallet_address, challenge_id, signature)` | No | Verify wallet signature, returns auth token |
-| `client.register(token, agent_data)` | Yes | Register a new agent (accepts optional `referred_by` DID) |
+| `client.wallet_auth(&WalletAuthRequest)` | No | Verify wallet signature, returns auth token |
+| `client.register(token, &RegistrationRequest)` | Yes | Register a new agent |
 | `client.lookup(did)` | No | Look up an agent by DID |
-| `client.list_my_agents(token)` | Yes | List agents owned by the authenticated wallet |
-| `client.update_agent(did, updates, token)` | Yes | Update agent metadata |
-| `client.revoke(did, token)` | Yes | Revoke an agent identity |
-| `client.rotate_key(did, new_public_key, token)` | Yes | Rotate an agent's public key |
-| `client.deploy_wallet(did, token)` | Yes | Deploy an on-chain smart wallet for an agent |
+| `client.list_my_agents(token, cursor, limit)` | Yes | List agents owned by the authenticated wallet |
+| `client.update_agent(token, did, &UpdateAgentRequest)` | Yes | Update agent metadata |
+| `client.revoke(token, did)` | Yes | Revoke an agent identity |
+| `client.rotate_key(token, did, &RotateKeyRequest)` | Yes | Rotate an agent's public key |
+| `client.deploy_wallet(token, did)` | Yes | Deploy an on-chain smart wallet for an agent |
 | `client.get_credit(did)` | No | Look up an agent's credit score |
-| `client.verify(did, signature, payload)` | No | Verify a signature against the agent's registered key |
+| `client.verify(&VerifyRequest)` | No | Verify a signature against the agent's registered key |
 
 ### Wallet auth flow
 
 ```rust,no_run
+use open_agent_id::types::WalletAuthRequest;
+
 // 1. Request challenge
 let challenge = client.challenge(wallet_address).await?;
 
@@ -76,20 +78,23 @@ let challenge = client.challenge(wallet_address).await?;
 // let wallet_signature = ...;
 
 // 3. Verify and get auth token
-let token = client.wallet_auth(wallet_address, &challenge.challenge_id, &wallet_signature).await?;
+let auth = client.wallet_auth(&WalletAuthRequest {
+    wallet_address: wallet_address.to_string(),
+    challenge_id: challenge.challenge_id,
+    signature: wallet_signature,
+}).await?;
+let token = auth.token;
 ```
 
 ### Register an agent
 
 ```rust,no_run
-use open_agent_id::client::RegisterAgentRequest;
+use open_agent_id::types::RegistrationRequest;
 
-let agent = client.register(&token, RegisterAgentRequest {
-    name: "my-agent".into(),
-    capabilities: vec!["search".into(), "summarize".into()],
+let agent = client.register(&token, &RegistrationRequest {
+    name: Some("my-agent".into()),
     public_key: base64url_public_key,
-    referred_by: Some("did:oaid:base:0xaaaa...".into()), // optional referral
-    ..Default::default()
+    capabilities: Some(vec!["search".into(), "summarize".into()]),
 }).await?;
 ```
 
@@ -97,16 +102,16 @@ let agent = client.register(&token, RegisterAgentRequest {
 
 ```rust,no_run
 let info = client.lookup("did:oaid:base:0x1234...").await?;
-let agents = client.list_my_agents(&token).await?;
+let agents = client.list_my_agents(&token, None, None).await?;
 ```
 
 ### Manage agents
 
 ```rust,no_run
-client.update_agent("did:oaid:base:0x1234...", updates, &token).await?;
-client.rotate_key("did:oaid:base:0x1234...", &new_public_key, &token).await?;
-client.revoke("did:oaid:base:0x1234...", &token).await?;
-client.deploy_wallet("did:oaid:base:0x1234...", &token).await?;
+client.update_agent(&token, "did:oaid:base:0x1234...", &updates).await?;
+client.rotate_key(&token, "did:oaid:base:0x1234...", &rotate_req).await?;
+client.revoke(&token, "did:oaid:base:0x1234...").await?;
+client.deploy_wallet(&token, "did:oaid:base:0x1234...").await?;
 ```
 
 ## Credit Score
